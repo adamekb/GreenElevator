@@ -11,10 +11,9 @@ public class Controller {
 	}
 
 	private void run(String nrOfElevators, String floors) throws InterruptedException {
-		Model model = new Model(Integer.parseInt(nrOfElevators), Integer.parseInt(floors));
+		model = new Model(Integer.parseInt(nrOfElevators), Integer.parseInt(floors));
 		
-		String connectionStatus = model.Connect(ELEVATOR_IP, ELEVATOR_PORT);
-		System.out.println(connectionStatus);
+		System.out.println(model.Connect(ELEVATOR_IP, ELEVATOR_PORT));
 		
 		while (true) {
 			System.out.println(model.getInput());

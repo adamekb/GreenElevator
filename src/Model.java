@@ -2,19 +2,18 @@
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 
 public class Model {
 
-	private int MOVE_UP = 1;
-	private int MOVE_DOWN = -1;
-	private int STOP = 0;
-	private int OPEN_DOOR = 1;
-	private int CLOSE_DOOR = -1;
+	private final int MOVE_UP = 1;
+	private final int MOVE_DOWN = -1;
+	private final int STOP = 0;
+	private final int OPEN_DOOR = 1;
+	private final int CLOSE_DOOR = -1;
+	private final int EMERGENCY_STOP = 32000;
 
 	private Elevator[] elevators;
 	private double velocity;
@@ -40,13 +39,13 @@ public class Model {
 				return "Could not connect";
 			}
 		}
-		
+
 		for (int i = 1; i <= nrOfElevators; i++) {
 			elevators[i] = new Elevator(floors);
 			sendCommand("w " + i);
 		}
 		sendCommand("v");
-		
+
 		return "Connected...";
 	}
 
@@ -93,10 +92,49 @@ public class Model {
 	private void setPosition(int elevator, float position) {
 		elevators[elevator].setPosition(position);
 		int intPos = Math.round(position);
-		if (Math.abs(intPos - position) < 0.025 && elevators[elevator].getStop(intPos)) {
-			elevators[elevator].removeStop(intPos);
-			sendCommand("m " + elevator + " " +  STOP);
-			openDoor(elevator);
+		if (Math.abs(intPos - position) < 0.06) {
+			sendCommand("s " + elevator + " " + intPos);
+			if (elevators[elevator].getStop(intPos)) {
+				elevators[elevator].removeStop(intPos);
+				moveElevator(elevator, STOP);
+				openDoor(elevator);
+
+				boolean sentAway = false;
+				if (elevators[elevator].getLastDirection() == MOVE_UP) {
+					for (int i = intPos; i < floors; i++) {
+						if (elevators[elevator].getStop(i)) {
+							sentAway = true;
+							moveElevator(elevator, MOVE_UP);
+						}
+					}
+				} else if (elevators[elevator].getLastDirection() == MOVE_DOWN) {
+					for (int i = intPos; i >= 0; i--) {
+						if (elevators[elevator].getStop(i)) {
+							sentAway = true;
+							moveElevator(elevator, MOVE_DOWN);
+						}
+					}
+				}
+				if (!sentAway) {
+					float closestDist = 999;
+					int closestFloor = -1;
+					boolean send = false;
+					for (int i = 0; i < floors; i++) {
+						if (elevators[elevator].getStop(i) && closestDist > Math.abs(position - i)) {
+							closestDist = Math.abs(position - i);
+							closestFloor = i;
+							send = true;
+						}
+					}
+					if (send) {
+						if (closestFloor > position) {
+							moveElevator(elevator, MOVE_DOWN);
+						} else {
+							moveElevator(elevator, MOVE_UP);
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -112,57 +150,96 @@ public class Model {
 
 
 	private void setStop(int elevator, int stopFloor) {
-		elevators[elevator].setStop(stopFloor);
-		if (elevators[elevator].getDirection() == STOP) {
-			float pos = elevators[elevator].getPosition();
-			float distance = stopFloor - pos;
-			if (distance < 0) {
-				sendCommand("m " + elevator + " " +  MOVE_DOWN);
-			} else {
-				sendCommand("m " + elevator + " " +  MOVE_UP);
+		if (stopFloor == EMERGENCY_STOP) {
+			moveElevator(elevator, STOP);
+		} else {
+			elevators[elevator].setStop(stopFloor);
+			if (elevators[elevator].getDirection() == STOP) {
+				float pos = elevators[elevator].getPosition();
+				float distance = stopFloor - pos;
+				if (distance < 0) {
+					moveElevator(elevator, MOVE_DOWN);
+				} else {
+					moveElevator(elevator, MOVE_UP);
+				}
 			}
 		}
-		
 	}
 
-
 	private void sendElevator(int toFloor, int direction) {
-		int bestElev = 0;
+		int bestElev = 999;
 		float bestDist = 999;
+		int moveStoppedEle = 999;
 		for (int i = 1; i <= nrOfElevators; i++) {
 			float pos = elevators[i].getPosition();
-			int dir = elevators[i].getDirection();
+			int eleDirection = elevators[i].getDirection();
 			float distance = toFloor - pos;
-			if (distance <= 0 && dir == MOVE_DOWN) {
-				if (direction == dir && bestDist > distance) {
-					bestDist = distance;
-					bestElev = i;
+
+			switch (direction) {
+			case MOVE_DOWN:
+				if (distance <= 0) {
+					if (eleDirection == MOVE_DOWN) {
+						distance = - distance + pos * 2;
+					} else if (eleDirection == MOVE_UP) {
+						distance = - distance + (floors - 1 - pos) * 2;
+					} else { // eleDirection == STOP
+						moveStoppedEle = MOVE_UP;
+						distance = - distance;
+					}
+				} else {
+					if (eleDirection == MOVE_UP) {
+						distance = distance + (floors - 1 - pos) * 2;
+					} else if (eleDirection == STOP) {
+						moveStoppedEle = MOVE_DOWN;
+					}
 				}
-			} else if (distance >= 0 && dir == MOVE_UP) {
-				if (direction == dir && bestDist > distance) {
-					bestDist = distance;
-					bestElev = i;
-				}
-			} else { // dir == STOP
 				if (bestDist > distance) {
 					bestDist = distance;
 					bestElev = i;
 				}
-			}
-			elevators[bestElev].setStop(toFloor);
-			
-			if (elevators[bestElev].getDirection() == STOP) {
-				if (bestDist < 0) {
-					sendCommand("m " + bestElev + " " +  MOVE_DOWN);
-				} else if (bestDist > 0) {
-					sendCommand("m " + bestElev + " " + MOVE_UP);
+				break;
+			case MOVE_UP:
+				if (distance <= 0) {
+					if (eleDirection == MOVE_DOWN) {
+						distance = - distance + pos * 2;
+					} else if (eleDirection == STOP) {
+						moveStoppedEle = MOVE_UP;
+						distance = - distance;
+					} else { // eleDirection == MOVE_UP
+						distance = - distance;
+					}
 				} else {
-					elevators[bestElev].removeStop(toFloor);
-					openDoor(bestElev);	
+					if (eleDirection == MOVE_UP) {
+						distance = distance + (floors - 1 - pos) * 2;
+					} else if (eleDirection == MOVE_DOWN) {
+						distance = distance + pos * 2;
+					} else { // eleDirection == STOP
+						moveStoppedEle = MOVE_DOWN;
+					}
 				}
+				if (bestDist > distance) {
+					bestDist = distance;
+					bestElev = i;
+				}
+				break;
+			default:
+				break;
 			}
 		}
+		System.out.println("BEST ELEVATOR: " + bestElev);
+		elevators[bestElev].setStop(toFloor);
+
+		if (elevators[bestElev].getDirection() == STOP) {
+			System.out.println("elevators[bestElev].getDirection() == STOP");
+			moveElevator(bestElev, moveStoppedEle);
+		}
 	}
+
+	private void moveElevator(int elevator, int direction) {
+		elevators[elevator].setDirection(direction);
+		sendCommand("m " + elevator + " " +  direction);
+	}
+
 
 	public void sendCommand(String command) {
 		System.out.println("Sending: " + command);
