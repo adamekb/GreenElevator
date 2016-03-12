@@ -3,7 +3,7 @@
 public class Controller {
 	private Model model;
 	
-	private String ELEVATOR_IP = "192.168.0.11";
+	private String ELEVATOR_IP = "localhost";
 	private int ELEVATOR_PORT = 4711;
 
 	public static void main (String [] args) throws InterruptedException {
