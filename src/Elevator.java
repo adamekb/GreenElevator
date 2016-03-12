@@ -10,6 +10,39 @@ public class Elevator {
 	public Elevator(int floors) {
 		stops = new boolean[floors];
 	}
+	
+	public synchronized Integer getNextDirection() {
+		int floor = Math.round(position);
+		Integer nextDirection = Model.STOP;
+		if (lastDirection == Model.MOVE_UP) {
+			for (int i = floor; i < stops.length; i++) {
+				if (stops[i]) {
+					nextDirection = Model.MOVE_UP;
+				}
+			}
+		} else if (lastDirection == Model.MOVE_DOWN) {
+			for (int i = floor; i >= 0; i--) {
+				if (stops[i]) {
+					nextDirection = Model.MOVE_DOWN;
+				}
+			}
+		}
+		
+		// No stop found in last direction.
+		if (nextDirection == Model.STOP) {
+			for (int i = 0; i < stops.length; i++) {
+				if (stops[i]) {
+					int distance = i - floor;
+					if (distance < 0) {
+						nextDirection = Model.MOVE_DOWN;
+					} else if (distance > 0) {
+						nextDirection = Model.MOVE_UP;
+					}
+				}
+			}
+		}
+		return nextDirection;
+	}
 
 	public void setStop(int floor) {
 		synchronized (stops) {
