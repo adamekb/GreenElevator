@@ -188,7 +188,7 @@ public class Model {
 			case MOVE_DOWN:
 				if (distance < -PRECISION) { //Elevator is above
 					if (eleDirection == MOVE_UP) {
-						distance = distance + (floors - 1 - pos) * 2;
+						distance = distance - (floors - 1 - pos) * 2;
 					}
 				} else if (distance > PRECISION) { //Elevator is down
 					if (eleDirection == MOVE_UP) {
@@ -204,7 +204,7 @@ public class Model {
 			case MOVE_UP:
 				if (distance < -PRECISION) { //Elevator is above
 					if (eleDirection == MOVE_DOWN) {
-						distance = distance + pos * 2;
+						distance = distance - pos * 2;
 					}
 				} else if (distance > PRECISION) { //Elevator is down
 					if (eleDirection == MOVE_DOWN) {
