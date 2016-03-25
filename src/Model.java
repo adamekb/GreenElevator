@@ -16,6 +16,7 @@ public class Model {
 	private final int OPEN_DOOR = 1;
 	private final int CLOSE_DOOR = -1;
 	private final int EMERGENCY_STOP = 32000;
+	private final double PRECISION = 0.05;
 
 	private Elevator[] elevators;
 	private double velocity;
@@ -27,28 +28,52 @@ public class Model {
 	public Model (int nrOfElevators, int floors) {
 		this.nrOfElevators = nrOfElevators;
 		this.floors = floors;
-		elevators = new Elevator[nrOfElevators+1];
+		elevators = new Elevator[nrOfElevators + 1];
 	}
 
 
-	public String Connect(String ip, int port) {
+	public boolean Connect(String ip, int port) {
 		while (socket == null) {
 			try {
 				socket = new Socket(ip, port);
 				writer = new PrintWriter(socket.getOutputStream(), true);
 				input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			} catch (IOException e) {
-				return "Could not connect to elevator server.";
+				return false;
 			}
 		}
+		new Thread() {
+			public void run() {
+				initiate();
+			}
+		}.start();
+		return true;
+	}
 
+	// Not using first index in elevators[] for simplicity
+	public void initiate() {
+		System.out.println("Initiating elevator.");
 		for (int i = 1; i <= nrOfElevators; i++) {
 			elevators[i] = new Elevator(floors);
+			//Get current position
 			sendCommand("w " + i);
 		}
+		//Get current velocity
 		sendCommand("v");
 
-		return "Connected...";
+		int initElevs = 0;
+
+		//Making sure all elevators have been initialized
+		while (initElevs < nrOfElevators) {
+			boolean[] inits = new boolean[nrOfElevators + 1];
+			for (int i = 1; i <= nrOfElevators; i++) {
+				if (!inits[i] && elevators[i].isInitiated()) {
+					initElevs++;
+					inits[i] = true;
+				}
+			}
+		}
+		System.out.println("Elevator ready to run.");
 	}
 
 	public String getInput() {
@@ -74,15 +99,18 @@ public class Model {
 		String[] msgArray = msg.split(" ");
 		switch (msgArray[0]) {
 		case "b":
+			System.out.println("Recieved: " + msg);
 			sendElevator(Integer.parseInt(msgArray[1]), Integer.parseInt(msgArray[2]));
 			break;
 		case "p":
+			System.out.println("Recieved: " + msg);
 			setStop(Integer.parseInt(msgArray[1]), Integer.parseInt(msgArray[2]));
 			break;
 		case "v":
 			velocity = Double.parseDouble(msgArray[1]);
 			break;
 		case "f":
+			System.out.println("Recieved: " + msg);
 			setPosition(Integer.parseInt(msgArray[1]), Float.parseFloat(msgArray[2]));
 			break;
 		default:
@@ -94,16 +122,17 @@ public class Model {
 	private void setPosition(int elevator, float position) {
 		elevators[elevator].setPosition(position);
 		int floor = Math.round(position);
-		setFloorIndicator(elevator, floor);
-		if (Math.abs(floor - position) < 0.06) {
+		if (Math.abs(floor - position) < PRECISION) {
+			setFloorIndicator(elevator, floor);
 			stopElevator(elevator, floor);
 		}
 	}
-	
+
 	private void stopElevator(int elevator, int floor) {
 		if (elevators[elevator].getStop(floor)) {
-			elevators[elevator].removeStop(floor);
+			elevators[elevator].setDirection(STOP);
 			moveElevator(elevator, STOP);
+			elevators[elevator].removeStop(floor);
 			openDoor(elevator);
 			int nextDirection = elevators[elevator].getNextDirection();
 			if (nextDirection != STOP) {
@@ -128,17 +157,19 @@ public class Model {
 		if (stopFloor == EMERGENCY_STOP) {
 			// Don't call stopElevator()
 			// since it opens door.
+			elevators[elevator].setDirection(STOP);
 			moveElevator(elevator, STOP);
 		} else {
 			elevators[elevator].setStop(stopFloor);
 			if (elevators[elevator].getDirection() == STOP) {
 				float pos = elevators[elevator].getPosition();
 				float distance = stopFloor - pos;
-				if (distance < 0) {
+				if (distance < -PRECISION) { //Elevator is above
 					moveElevator(elevator, MOVE_DOWN);
-				} else if (distance > 0) {
+				} else if (distance > PRECISION) { //Elevator is down
 					moveElevator(elevator, MOVE_UP);
 				} else {
+					elevators[elevator].removeStop(stopFloor);
 					openDoor(elevator);
 				}
 			}
@@ -155,40 +186,32 @@ public class Model {
 
 			switch (direction) {
 			case MOVE_DOWN:
-				if (distance <= 0) {
-					if (eleDirection == MOVE_DOWN) {
-						distance = - distance + pos * 2;
-					} else if (eleDirection == MOVE_UP) {
-						distance = - distance + (floors - 1 - pos) * 2;
-					} else { // eleDirection == STOP
-						distance = - distance;
+				if (distance < -PRECISION) { //Elevator is above
+					if (eleDirection == MOVE_UP) {
+						distance = distance + (floors - 1 - pos) * 2;
 					}
-				} else {
+				} else if (distance > PRECISION) { //Elevator is down
 					if (eleDirection == MOVE_UP) {
 						distance = distance + (floors - 1 - pos) * 2;
 					}
 				}
+				distance = Math.abs(distance);
 				if (bestDist > distance) {
 					bestDist = distance;
 					bestElev = i;
 				}
 				break;
 			case MOVE_UP:
-				if (distance <= 0) {
+				if (distance < -PRECISION) { //Elevator is above
 					if (eleDirection == MOVE_DOWN) {
-						distance = - distance + pos * 2;
-					} else if (eleDirection == STOP) {
-						distance = - distance;
-					} else { // eleDirection == MOVE_UP
-						distance = - distance;
+						distance = distance + pos * 2;
 					}
-				} else {
-					if (eleDirection == MOVE_UP) {
-						distance = distance + (floors - 1 - pos) * 2;
-					} else if (eleDirection == MOVE_DOWN) {
+				} else if (distance > PRECISION) { //Elevator is down
+					if (eleDirection == MOVE_DOWN) {
 						distance = distance + pos * 2;
 					}
 				}
+				distance = Math.abs(distance);
 				if (bestDist > distance) {
 					bestDist = distance;
 					bestElev = i;
@@ -198,12 +221,15 @@ public class Model {
 				break;
 			}
 		}
-		System.out.println("BEST ELEVATOR: " + bestElev);
+		System.out.println("Epic algorithm have chosen elevator " + bestElev);
 		setStop(bestElev, toFloor);
 	}
-	
+
 	private void setFloorIndicator(int elevator, int floor) {
-		sendCommand("s " + elevator + " " + floor);
+		if (elevators[elevator].getFloorIndicator() != floor) {
+			elevators[elevator].setFloorIndicator(floor);
+			sendCommand("s " + elevator + " " + floor);
+		}
 	}
 
 	private void moveElevator(int elevator, int direction) {
@@ -213,9 +239,44 @@ public class Model {
 
 
 	public void sendCommand(String command) {
-		System.out.println("Sending: " + command);
+		System.out.println("Sending: " + translateCommand(command));
 		synchronized (writer) {
 			writer.println(command);
 		}
+	}
+
+	private String translateCommand(String command) {
+		String[] msgArray = command.split(" ");
+		switch (msgArray[0]) {
+		case "m":
+			if (msgArray[2].equals("0")) {
+				command = "Stop elevator " + msgArray[1];
+			} else if (msgArray[2].equals("1")) {
+				command = "Move elevator " + msgArray[1] + " up";
+			} else {
+				command = "Move elevator " + msgArray[1] + " down";
+			}
+			break;
+		case "d":
+			if (msgArray[2].equals("1")) {
+				command = "Open door on elevator " + msgArray[1];
+			} else {
+				command = "Close door on elevator " + msgArray[1];
+			}
+			break;
+		case "s":
+			command = "Set floor indicator on elevator " + msgArray[1] + " to " + msgArray[2];
+			break;
+		case "w":
+			command = "Inspect position of elevator " + msgArray[1];
+			break;
+		case "v":
+			command = "Get current velocity";
+			break;
+		default:
+			System.err.println("Error reading " + msgArray);
+			break;
+		}
+		return command;
 	}
 }

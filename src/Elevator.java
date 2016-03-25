@@ -2,9 +2,11 @@
 
 public class Elevator {
 	private boolean stops[];
-	private Float position;
+	private Float position = new Float(0);
 	private Integer direction = 0;
 	private Integer lastDirection = 0;
+	private Boolean initiated = false;
+	private Integer floorIndicator = 0;
 
 
 	public Elevator(int floors) {
@@ -70,6 +72,11 @@ public class Elevator {
 
 	public void setPosition(Float position) {
 		synchronized (position) {
+			if(!initiated) {
+				initiated = true;
+			} else {
+				//System.out.println("Span: " + Math.abs(this.position - position));
+			}
 			this.position = position;
 		}
 	}
@@ -90,6 +97,24 @@ public class Elevator {
 	public Integer getLastDirection() {
 		synchronized (direction) {
 			return lastDirection;
+		}
+	}
+
+	public Boolean isInitiated() {
+		synchronized (position) {
+			return initiated;
+		}
+	}
+
+	public Integer getFloorIndicator() {
+		synchronized (floorIndicator) {
+			return floorIndicator;
+		}
+	}
+
+	public void setFloorIndicator(Integer floorIndicator) {
+		synchronized (floorIndicator) {
+			this.floorIndicator = floorIndicator;
 		}
 	}
 }
