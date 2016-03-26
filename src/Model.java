@@ -195,11 +195,6 @@ public class Model {
 						distance = distance + (floors - 1 - pos) * 2;
 					}
 				}
-				distance = Math.abs(distance);
-				if (bestDist > distance) {
-					bestDist = distance;
-					bestElev = i;
-				}
 				break;
 			case MOVE_UP:
 				if (distance < -PRECISION) { //Elevator is above
@@ -211,14 +206,15 @@ public class Model {
 						distance = distance + pos * 2;
 					}
 				}
-				distance = Math.abs(distance);
-				if (bestDist > distance) {
-					bestDist = distance;
-					bestElev = i;
-				}
 				break;
 			default:
 				break;
+			}
+			
+			distance = Math.abs(distance);
+			if (bestDist > distance) {
+				bestDist = distance;
+				bestElev = i;
 			}
 		}
 		System.out.println("Epic algorithm have chosen elevator " + bestElev);
