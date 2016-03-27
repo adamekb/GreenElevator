@@ -116,35 +116,56 @@ public class Model {
 	private void sendElevator(int toFloor, int direction) {
 		int bestElev = 999;
 		float bestDist = 999;
+		boolean alreadySent = false;
 		for (int i = 1; i <= nrOfElevators; i++) {
-			float pos = elevators[i].getPosition();
-			int eleDirection = elevators[i].getDirection();
+			Elevator elev = elevators[i];
+			float pos = elev.getPosition();
+			int elevDirection = elev.getDirection();
 			float distance = toFloor - pos;
+			boolean alreadyHaveStop = elev.getStop(toFloor);
+			boolean willTurnAround = elev.willTurnAround();
+			int topFloorHeight = floors - 1;
 
 			switch (direction) {
 			case MOVE_DOWN:
 				if (distance < -PRECISION) { //Elevator is above
-					if (eleDirection == MOVE_UP) {
-						distance = distance - (floors - 1 - pos) * 2;
+					if (elevDirection == MOVE_UP) {
+						distance = distance - (topFloorHeight - pos) * 2;
+					} else if (elevDirection == MOVE_DOWN && willTurnAround) {
+						distance = pos - toFloor  + topFloorHeight * 2 - elev.getTurningFloor() * 2;
+					}
+					if (alreadyHaveStop && !willTurnAround) {
+						alreadySent = true;
 					}
 				} else if (distance > PRECISION) { //Elevator is down
-					if (eleDirection == MOVE_UP) {
-						distance = distance + (floors - 1 - pos) * 2;
-					} else if (eleDirection == MOVE_DOWN) {
+					if (elevDirection == MOVE_UP) {
+						distance = distance + (topFloorHeight - pos) * 2;
+					} else if (elevDirection == MOVE_DOWN) {
 						distance = distance + pos * 2;
+					}
+					if (alreadyHaveStop && willTurnAround) {
+						alreadySent = true;
 					}
 				}
 				break;
 			case MOVE_UP:
 				if (distance < -PRECISION) { //Elevator is above
-					if (eleDirection == MOVE_DOWN) {
+					if (elevDirection == MOVE_DOWN) {
 						distance = distance - pos * 2;
-					} else if (eleDirection == MOVE_UP) {
-						distance = distance - (floors - 1 - pos) * 2;
+					} else if (elevDirection == MOVE_UP) {
+						distance = distance - (topFloorHeight - pos) * 2;
+					}
+					if (alreadyHaveStop && willTurnAround) {
+						alreadySent = true;
 					}
 				} else if (distance > PRECISION) { //Elevator is down
-					if (eleDirection == MOVE_DOWN) {
+					if (elevDirection == MOVE_DOWN) {
 						distance = distance + pos * 2;
+					} else if (elevDirection == MOVE_UP && willTurnAround) {
+						distance = elev.getTurningFloor() * 2 - pos + toFloor;
+					}
+					if (alreadyHaveStop && !willTurnAround) {
+						alreadySent = true;
 					}
 				}
 				break;
@@ -158,9 +179,29 @@ public class Model {
 				bestElev = i;
 			}
 		}
-		System.out.println("Epic algorithm have chosen elevator " + bestElev);
-		setStop(bestElev, toFloor);
+		
+		if (!alreadySent) {
+			System.out.println("Epic algorithm have chosen elevator " + bestElev);
+			
+			if (toFloor - elevators[bestElev].getPosition() > PRECISION) {
+				//Elevator is down
+				if (direction == MOVE_DOWN) {
+					// Have to turn around at stop
+					elevators[bestElev].setWillTurnAround();
+					elevators[bestElev].setTurningFloor(toFloor);
+				}
+			} else if (toFloor - elevators[bestElev].getPosition() < -PRECISION) { 
+				//Elevator is above
+				if (direction == MOVE_UP) {
+					// Have to turn around at stop
+					elevators[bestElev].setWillTurnAround();
+					elevators[bestElev].setTurningFloor(toFloor);
+				}
+			}
+			setStop(bestElev, toFloor);
+		}
 	}
+
 
 	private void setStop(int elevator, int stopFloor) {
 		if (stopFloor == EMERGENCY_STOP) {

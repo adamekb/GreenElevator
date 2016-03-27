@@ -7,6 +7,8 @@ public class Elevator {
 	private Integer lastDirection = 0;
 	private Boolean initiated = false;
 	private Integer floorIndicator = 0;
+	private Boolean willTurnAround = false;
+	private Integer turningFloor = 0;
 
 
 	public Elevator(int floors) {
@@ -58,9 +60,12 @@ public class Elevator {
 		}
 	}
 
-	public void removeStop(int floor) {
-		synchronized (stops) {
-			stops[floor] = false;
+	public synchronized void removeStop(int floor) {
+		stops[floor] = false;
+		if (willTurnAround) {
+			if (floor == turningFloor) {
+				willTurnAround = false;
+			}
 		}
 	}
 
@@ -71,11 +76,10 @@ public class Elevator {
 	}
 
 	public void setPosition(Float position) {
+		// initiated is always synchronized with position
 		synchronized (position) {
 			if(!initiated) {
 				initiated = true;
-			} else {
-				//System.out.println("Span: " + Math.abs(this.position - position));
 			}
 			this.position = position;
 		}
@@ -115,6 +119,30 @@ public class Elevator {
 	public void setFloorIndicator(Integer floorIndicator) {
 		synchronized (floorIndicator) {
 			this.floorIndicator = floorIndicator;
+		}
+	}
+
+	public Boolean willTurnAround() {
+		synchronized (willTurnAround) {
+			return willTurnAround;
+		}
+	}
+	
+	public void setWillTurnAround() {
+		synchronized (willTurnAround) {
+			this.willTurnAround = true;
+		}
+	}
+
+	public Integer getTurningFloor() {
+		synchronized (turningFloor) {
+			return turningFloor;
+		}
+	}
+	
+	public void setTurningFloor(Integer floor) {
+		synchronized (turningFloor) {
+			this.turningFloor = floor;
 		}
 	}
 }
