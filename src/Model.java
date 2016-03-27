@@ -99,18 +99,15 @@ public class Model {
 		String[] msgArray = msg.split(" ");
 		switch (msgArray[0]) {
 		case "b":
-			System.out.println("Recieved: " + msg);
 			sendElevator(Integer.parseInt(msgArray[1]), Integer.parseInt(msgArray[2]));
 			break;
 		case "p":
-			System.out.println("Recieved: " + msg);
 			setStop(Integer.parseInt(msgArray[1]), Integer.parseInt(msgArray[2]));
 			break;
 		case "v":
 			velocity = Double.parseDouble(msgArray[1]);
 			break;
 		case "f":
-			System.out.println("Recieved: " + msg);
 			setPosition(Integer.parseInt(msgArray[1]), Float.parseFloat(msgArray[2]));
 			break;
 		default:
@@ -193,6 +190,8 @@ public class Model {
 				} else if (distance > PRECISION) { //Elevator is down
 					if (eleDirection == MOVE_UP) {
 						distance = distance + (floors - 1 - pos) * 2;
+					} else if (eleDirection == MOVE_DOWN) {
+						distance = distance + pos * 2;
 					}
 				}
 				break;
@@ -200,6 +199,8 @@ public class Model {
 				if (distance < -PRECISION) { //Elevator is above
 					if (eleDirection == MOVE_DOWN) {
 						distance = distance - pos * 2;
+					} else if (eleDirection == MOVE_UP) {
+						distance = distance - (floors - 1 - pos) * 2;
 					}
 				} else if (distance > PRECISION) { //Elevator is down
 					if (eleDirection == MOVE_DOWN) {

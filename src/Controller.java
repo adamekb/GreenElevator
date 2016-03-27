@@ -1,20 +1,28 @@
 
 
 public class Controller {
-	private Model model;
 
-	private String ELEVATOR_IP = "localhost";
-	private int ELEVATOR_PORT = 4711;
+	private static String DEFAULT_ELEVATOR_IP = "localhost";
+	private static String DEFAULT_ELEVATOR_PORT = "4711";
+	private static String DEFAULT_NR_OF_ELEVATORS = "5";
+	private static String DEFAULT_NR_OF_FLOORS = "6";
 
 	public static void main (String [] args) throws InterruptedException {
-		new Controller().run(args[0], args[1]);
+		if (args.length == 2) {
+			new Controller().run(args[0], args[1], DEFAULT_ELEVATOR_IP, DEFAULT_ELEVATOR_PORT);
+		} else if (args.length == 4) {
+			new Controller().run(args[0], args[1], args[2], args[3]);
+		} else {
+			new Controller().run(DEFAULT_NR_OF_ELEVATORS, DEFAULT_NR_OF_FLOORS, DEFAULT_ELEVATOR_IP, DEFAULT_ELEVATOR_PORT);
+		}
 	}
 
-	private void run(String nrOfElevators, String floors) throws InterruptedException {
-		model = new Model(Integer.parseInt(nrOfElevators), Integer.parseInt(floors));
+	private void run(String nrOfElevators, String floors, String ip, String port) 
+			throws InterruptedException {
+		Model model = new Model(Integer.parseInt(nrOfElevators), Integer.parseInt(floors));
 
 		while (true) {
-			if (model.Connect(ELEVATOR_IP, ELEVATOR_PORT)) {
+			if (model.Connect(ip, Integer.parseInt(port))) {
 				break;
 			} else {
 				System.out.println("Could not connect...");
@@ -25,7 +33,9 @@ public class Controller {
 
 		String input = model.getInput();
 		while (true) {
-			//System.out.println(input);
+			if (!input.startsWith("f")) {
+				System.out.println("Recieved: " + input);
+			}
 			if (input.equals("Elevator server down.")) {
 				System.out.println("Shutting down controller...");
 				System.exit(1);

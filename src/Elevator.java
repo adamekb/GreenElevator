@@ -118,30 +118,3 @@ public class Elevator {
 		}
 	}
 }
-
-//			if (distance <= 0 && eleDirection == MOVE_DOWN) {
-//				if (direction == eleDirection && bestDist > distance) {
-//					bestDist = distance;
-//					bestElev = i;
-//				}
-//			} else if (distance <= 0 && eleDirection == MOVE_UP) {
-//				if (direction == eleDirection && bestDist > distance) {
-//					bestDist = distance;
-//					bestElev = i;
-//				}
-//			} else if (distance >= 0 && eleDirection == MOVE_DOWN) {
-//				if (direction == eleDirection && bestDist > distance) {
-//					bestDist = distance;
-//					bestElev = i;
-//				}
-//			} else if (distance >= 0 && eleDirection == MOVE_UP) {
-//				if (direction == eleDirection && bestDist > distance) {
-//					bestDist = distance;
-//					bestElev = i;
-//				}
-//			} else { // dir == STOP
-//				if (bestDist > distance) {
-//					bestDist = distance;
-//					bestElev = i;
-//				}
-//			}
