@@ -19,7 +19,6 @@ public class Model {
 	private final double PRECISION = 0.05;
 
 	private Elevator[] elevators;
-	private double velocity;
 	private int nrOfElevators, floors;
 	private Socket socket;
 	private PrintWriter writer;
@@ -58,8 +57,6 @@ public class Model {
 			//Get current position
 			sendCommand("w " + i);
 		}
-		//Get current velocity
-		sendCommand("v");
 
 		int initElevs = 0;
 
@@ -104,72 +101,15 @@ public class Model {
 		case "p":
 			setStop(Integer.parseInt(msgArray[1]), Integer.parseInt(msgArray[2]));
 			break;
-		case "v":
-			velocity = Double.parseDouble(msgArray[1]);
-			break;
 		case "f":
 			setPosition(Integer.parseInt(msgArray[1]), Float.parseFloat(msgArray[2]));
+			break;
+		case "v":
+			//Not using velocity.
 			break;
 		default:
 			System.err.println("Error reading " + msgArray);
 			break;
-		}
-	}
-
-	private void setPosition(int elevator, float position) {
-		elevators[elevator].setPosition(position);
-		int floor = Math.round(position);
-		if (Math.abs(floor - position) < PRECISION) {
-			setFloorIndicator(elevator, floor);
-			stopElevator(elevator, floor);
-		}
-	}
-
-	private void stopElevator(int elevator, int floor) {
-		if (elevators[elevator].getStop(floor)) {
-			elevators[elevator].setDirection(STOP);
-			moveElevator(elevator, STOP);
-			elevators[elevator].removeStop(floor);
-			openDoor(elevator);
-			int nextDirection = elevators[elevator].getNextDirection();
-			if (nextDirection != STOP) {
-				moveElevator(elevator, nextDirection);
-			}
-		}
-	}
-
-
-	private void openDoor(int elevator) {
-		sendCommand("d " + elevator + " " +  OPEN_DOOR);
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		sendCommand("d " + elevator + " " +  CLOSE_DOOR);
-	}
-
-
-	private void setStop(int elevator, int stopFloor) {
-		if (stopFloor == EMERGENCY_STOP) {
-			// Don't call stopElevator()
-			// since it opens door.
-			elevators[elevator].setDirection(STOP);
-			moveElevator(elevator, STOP);
-		} else {
-			elevators[elevator].setStop(stopFloor);
-			if (elevators[elevator].getDirection() == STOP) {
-				float pos = elevators[elevator].getPosition();
-				float distance = stopFloor - pos;
-				if (distance < -PRECISION) { //Elevator is above
-					moveElevator(elevator, MOVE_DOWN);
-				} else if (distance > PRECISION) { //Elevator is down
-					moveElevator(elevator, MOVE_UP);
-				} else {
-					elevators[elevator].removeStop(stopFloor);
-					openDoor(elevator);
-				}
-			}
 		}
 	}
 
@@ -220,6 +160,62 @@ public class Model {
 		}
 		System.out.println("Epic algorithm have chosen elevator " + bestElev);
 		setStop(bestElev, toFloor);
+	}
+
+	private void setStop(int elevator, int stopFloor) {
+		if (stopFloor == EMERGENCY_STOP) {
+			// Don't call stopElevator()
+			// since it opens door.
+			elevators[elevator].setDirection(STOP);
+			moveElevator(elevator, STOP);
+		} else {
+			elevators[elevator].setStop(stopFloor);
+			if (elevators[elevator].getDirection() == STOP) {
+				float pos = elevators[elevator].getPosition();
+				float distance = stopFloor - pos;
+				if (distance < -PRECISION) { //Elevator is above
+					moveElevator(elevator, MOVE_DOWN);
+				} else if (distance > PRECISION) { //Elevator is down
+					moveElevator(elevator, MOVE_UP);
+				} else {
+					elevators[elevator].removeStop(stopFloor);
+					openDoor(elevator);
+				}
+			}
+		}
+	}
+	
+	private void setPosition(int elevator, float position) {
+		elevators[elevator].setPosition(position);
+		int floor = Math.round(position);
+		if (Math.abs(floor - position) < PRECISION) {
+			setFloorIndicator(elevator, floor);
+			stopElevator(elevator, floor);
+		}
+	}
+
+	private void stopElevator(int elevator, int floor) {
+		if (elevators[elevator].getStop(floor)) {
+			elevators[elevator].setDirection(STOP);
+			moveElevator(elevator, STOP);
+			elevators[elevator].removeStop(floor);
+			openDoor(elevator);
+			int nextDirection = elevators[elevator].getNextDirection();
+			if (nextDirection != STOP) {
+				moveElevator(elevator, nextDirection);
+			}
+		}
+	}
+
+
+	private void openDoor(int elevator) {
+		sendCommand("d " + elevator + " " +  OPEN_DOOR);
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		sendCommand("d " + elevator + " " +  CLOSE_DOOR);
 	}
 
 	private void setFloorIndicator(int elevator, int floor) {
